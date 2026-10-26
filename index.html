@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bangla IPTV</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#09090b">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<style>
+:root{--bg:#09090b;--surface:#18181b;--hover:#27272a;--border:#3f3f46;--text:#f4f4f5;--muted:#a1a1aa;--primary:#6366f1;--primary-h:#4f46e5;--danger:#ef4444;--ok:#10b981;--warn:#f59e0b;--star:#eab308;--hbg:rgba(24,24,27,.9)}
+[data-theme=light]{--bg:#f1f5f9;--surface:#fff;--hover:#f8fafc;--border:#cbd5e1;--text:#0f172a;--muted:#64748b;--hbg:rgba(255,255,255,.9)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+header{background:var(--hbg);backdrop-filter:blur(12px);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border)}
+header h1{font-size:18px;display:flex;align-items:center;gap:8px}
+header h1 span{background:var(--danger);color:#fff;font-size:10px;padding:2px 6px;border-radius:20px;animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.6}}
+.search-box{display:flex;gap:8px;flex:1;max-width:420px;min-width:180px}
+.search-box input{flex:1;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;outline:none}
+.search-box input:focus{border-color:var(--primary)}
+.icon-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;padding:8px 12px;font-size:16px}
+.icon-btn:hover{background:var(--hover)}.icon-btn.on{border-color:var(--primary);background:rgba(99,102,241,.2)}
+.hc{display:flex;gap:6px}
+.main{display:flex;flex:1;min-height:0}
+.side{width:340px;min-width:300px;background:var(--surface);display:flex;flex-direction:column;border-right:1px solid var(--border);min-height:0}
+.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);scrollbar-width:none;flex:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{padding:12px 14px;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
+.tabs button.active{color:var(--primary);border-bottom-color:var(--primary)}
+.list{flex:1;overflow-y:auto}
+.ch{padding:8px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px}
+.ch:hover{background:var(--hover)}.ch.active{background:rgba(99,102,241,.15);border-left:3px solid var(--primary)}
+.ch.dead{opacity:.5}.ch.dead .nm{text-decoration:line-through}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px;flex:none}
+.bar label{display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)}
+#scanInfo{color:var(--muted);width:100%}
+.ch .num{font-size:11px;color:var(--muted);min-width:22px;text-align:right}
+.ch img,.ch .ph{width:36px;height:36px;object-fit:contain;border-radius:6px;background:var(--bg);flex:none}
+.ch .ph{display:flex;align-items:center;justify-content:center;font-size:16px}
+.ch .nm{font-size:14px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch .off{font-size:10px;color:var(--danger)}
+.fav{background:none;border:0;color:var(--border);font-size:18px;cursor:pointer;padding:4px}
+.fav.is{color:var(--star)}
+.player{flex:1;display:flex;flex-direction:column;background:#000;min-width:0}
+.vwrap{position:relative;flex:1;min-height:0}
+video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.info{padding:10px 16px;background:var(--surface);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--border)}
+.np{font-size:15px;font-weight:600}
+.acts{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ab{background:var(--bg);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600}
+.ab:hover{background:var(--hover)}
+#q{background:var(--bg);color:var(--text);border:1px solid var(--border);padding:6px;border-radius:6px;font-size:12px;display:none}
+.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;background:var(--bg);padding:6px 10px;border-radius:20px;border:1px solid var(--border)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.dot.loading{background:var(--warn);animation:pulse 1s infinite}.dot.playing{background:var(--ok)}.dot.error{background:var(--danger)}
+.ov{position:absolute;inset:0;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:5;padding:20px;text-align:center;color:#fff}
+.hidden{display:none!important}
+.spin{width:44px;height:44px;border:4px solid #3f3f46;border-top-color:var(--primary);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.pb{width:70px;height:70px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:28px;color:#fff}
+.rb{background:var(--primary);color:#fff;border:0;padding:10px 18px;border-radius:8px;cursor:pointer;font-weight:600;margin:0 4px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--text);border:1px solid var(--border);padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;font-size:13px}
+.toast.show{opacity:1}
+.empty{padding:20px;text-align:center;color:var(--muted)}
+@media(max-width:768px){
+ .main{flex-direction:column}
+ .player{flex:none;order:-1}
+ .vwrap{flex:none}
+ video{aspect-ratio:16/9;height:auto}
+ .side{width:100%;min-width:0;flex:1;border-right:0}
+ .info{padding:8px 12px}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>📺 বাংলা IPTV <span>LIVE</span></h1>
+  <div class="search-box">
+    <input id="search" type="text" placeholder="চ্যানেল খুঁজুন... ( / )" oninput="filterChannels()">
+  </div>
+  <div class="hc">
+    <button class="icon-btn" onclick="loadPlaylist()" title="রিফ্রেশ">🔄</button>
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="থিম">🌙</button>
+  </div>
+</header>
+<div class="main">
+  <div class="side">
+    <div class="tabs" id="tabs">
+      <button data-t="all" class="active">📺 সব</button>
+      <button data-t="fav">⭐ ফেভারিট</button>
+      <button data-t="history">🕒 সাম্প্রতিক</button>
+      <button data-t="sports">⚽ খেলা</button>
+      <button data-t="news">📰 খবর</button>
+      <button data-t="movies">🎬 মুভি</button>
+      <button data-t="music">🎵 গান</button>
+    </div>
+    <div class="bar">
+      <button class="ab" id="scanBtn" onclick="scanAll()">🔍 স্ক্যান</button>
+      <label><input type="checkbox" id="hideChk" onchange="toggleHide()"> Hide Offline Channels</label>
+      <span id="scanInfo"></span>
+    </div>
+    <div class="list" id="list"><div class="empty">লোড হচ্ছে...</div></div>
+  </div>
+  <div class="player">
+    <div class="vwrap">
+      <video id="video" controls playsinline></video>
+      <div class="ov hidden" id="ov">
+        <div class="spin" id="spin"></div>
+        <p id="ovText"></p>
+        <div class="pb hidden" id="pb" onclick="forcePlay()">▶</div>
+        <div id="errBtns" class="hidden">
+          <button class="rb" onclick="retryCurrent()">🔄 আবার চেষ্টা</button>
+          <button class="rb" onclick="step(1)">⏭ পরের চ্যানেল</button>
+        </div>
+      </div>
+    </div>
+    <div class="info">
+      <div class="np" id="np">কোনো চ্যানেল সিলেক্ট করা হয়নি</div>
+      <div class="acts">
+        <select id="q" onchange="if(hls)hls.currentLevel=+this.value"></select>
+        <button class="ab" onclick="step(-1)" title="আগের (↑)">⏮</button>
+        <button class="ab" onclick="step(1)" title="পরের (↓)">⏭</button>
+        <button class="ab" id="favBtn" onclick="toggleFavCurrent()">☆</button>
+        <button class="ab" onclick="togglePiP()">PiP</button>
+        <button class="ab" onclick="toggleFS()">⛶</button>
+        <div class="status"><span class="dot" id="dot"></span><span id="st">প্রস্তুত</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const PLAYLIST_URL='https://iptv-org.github.io/iptv/languages/ben.m3u';
+const $=id=>document.getElementById(id);
+const get=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
+const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const GROUPS={sports:/sport/i,news:/news/i,movies:/movie|cinema|film/i,music:/music/i};
+const KW={sports:['sport','cricket','football'],news:['news','khobor','somoy','jamuna','ekattor','channel i','dbc'],movies:['movie','cinema','film'],music:['music','gaan','sangeet','song']};
+
+let channels=[],cur=null,tab='all',hls=null,rendered=[],retries=0,loadTimer=null,resumed=false;
+let favs=get('iptv_favs',[]),hist=get('iptv_history',[]),dead=get('iptv_dead',{});
+let hideDead=get('iptv_hide',false),scanning=false;
+const video=$('video');
+video.muted=get('iptv_muted',false);
+
+// ---------- helpers ----------
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500)}
+function setStatus(type,text){$('dot').className='dot '+(type||'');$('st').textContent=text||'প্রস্তুত'}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function ov(mode,text){
+  const o=$('ov');
+  if(mode==='hide'){o.classList.add('hidden');return}
+  o.classList.remove('hidden');
+  $('spin').classList.toggle('hidden',mode!=='load');
+  $('pb').classList.toggle('hidden',mode!=='play');
+  $('errBtns').classList.toggle('hidden',mode!=='err');
+  $('ovText').textContent=text||'';
+}
+function applyTheme(){const t=get('iptv_theme','dark');document.documentElement.dataset.theme=t;$('themeBtn').textContent=t==='dark'?'🌙':'☀️'}
+function toggleTheme(){put('iptv_theme',get('iptv_theme','dark')==='dark'?'light':'dark');applyTheme()}
+function toggleHide(){hideDead=$('hideChk').checked;put('iptv_hide',hideDead);filterChannels()}
+function syncHideBtn(){$('hideChk').checked=hideDead}
+async function checkUrl(u){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),8000);
+  try{
+    const r=await fetch(u,{signal:c.signal});if(!r.ok)return false;
+    const rd=r.body.getReader(),{value}=await rd.read();rd.cancel();
+    return !!value&&new TextDecoder().decode(value.slice(0,32)).includes('#EXTM3U');
+  }catch(e){return false}finally{clearTimeout(t)}
+}
+async function scanAll(){
+  if(scanning){scanning=false;return}
+  if(!channels.length)return;
+  scanning=true;$('scanBtn').textContent='⏹ থামান';
+  const todo=channels.slice(),total=todo.length;let done=0,off=0;
+  const info=()=>$('scanInfo').textContent=`স্ক্যান: ${done}/${total} • অফলাইন: ${off}`;
+  info();
+  async function worker(){
+    while(scanning&&todo.length){
+      const ch=todo.shift(),ok=await checkUrl(ch.url);
+      if(ok)delete dead[ch.url];else{dead[ch.url]=1;off++}
+      done++;info();
+      if(done%25===0)filterChannels();
+    }
+  }
+  await Promise.all(Array.from({length:10},worker));
+  const finished=scanning;scanning=false;
+  put('iptv_dead',dead);$('scanBtn').textContent='🔍 স্ক্যান';
+  $('scanInfo').textContent=(finished?'স্ক্যান শেষ':'থামানো হয়েছে')+` • অফলাইন: ${off}/${done}`;
+  filterChannels();
+}
+video.addEventListener('volumechange',()=>put('iptv_muted',video.muted));
+video.addEventListener('playing',()=>{
+  clearTimeout(loadTimer);ov('hide');setStatus('playing','চলছে');
+  if(cur&&dead[cur.url]){delete dead[cur.url];put('iptv_dead',dead);filterChannels()}
+});
+
+// ---------- controls ----------
+function forcePlay(){video.play().then(()=>ov('hide')).catch(()=>toast('চালু করা যাচ্ছে না'))}
+function retryCurrent(){if(cur)playChannel(cur)}
+function togglePiP(){
+  if(document.pictureInPictureElement)document.exitPictureInPicture();
+  else if(document.pictureInPictureEnabled)video.requestPictureInPicture().catch(()=>toast('PiP সাপোর্ট করে না'));
+}
+function toggleFS(){
+  if(!document.fullscreenElement){(video.requestFullscreen||video.webkitRequestFullscreen||(()=>{})).call(video)}
+  else document.exitFullscreen()
+}
+function step(dir){
+  if(!rendered.length)return;
+  let i=cur?rendered.findIndex(c=>c.url===cur.url):-1;
+  i=i<0?(dir>0?0:rendered.length-1):(i+dir+rendered.length)%rendered.length;
+  playChannel(rendered[i]);
+  const a=$('list').querySelector('.active');if(a)a.scrollIntoView({block:'nearest'});
+}
+document.addEventListener('keydown',e=>{
+  const inInput=document.activeElement===$('search');
+  if(e.key==='Escape'&&inInput){$('search').blur();return}
+  if(inInput||e.ctrlKey||e.metaKey||e.altKey)return;
+  const k=e.key.toLowerCase();
+  if(e.key==='/'){e.preventDefault();$('search').focus()}
+  else if(e.key==='ArrowDown'){e.preventDefault();step(1)}
+  else if(e.key==='ArrowUp'){e.preventDefault();step(-1)}
+  else if(k==='f')toggleFS();
+  else if(k==='m')video.muted=!video.muted;
+});
+
+// ---------- favorites / history / dead ----------
+function isFav(ch){return favs.some(c=>c.url===ch.url)}
+function toggleFav(ch){
+  const i=favs.findIndex(c=>c.url===ch.url);
+  if(i>-1)favs.splice(i,1);else favs.push(ch);
+  put('iptv_favs',favs);updateFavBtn();filterChannels();
+}
+function toggleFavCurrent(){if(cur)toggleFav(cur)}
+function updateFavBtn(){
+  const f=cur&&isFav(cur);
+  $('favBtn').textContent=f?'★':'☆';$('favBtn').style.color=f?'var(--star)':'';
+}
+function addHistory(ch){hist=hist.filter(c=>c.url!==ch.url);hist.unshift(ch);if(hist.length>15)hist.pop();put('iptv_history',hist)}
+function markDead(ch){if(!ch)return;dead[ch.url]=1;put('iptv_dead',dead);filterChannels()}
+
+// ---------- list ----------
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  tab=b.dataset.t;
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('active',x===b));
+  filterChannels();
+});
+function inCategory(ch,t){
+  if(GROUPS[t].test(ch.group))return true;
+  const n=ch.name.toLowerCase();
+  return KW[t].some(w=>n.includes(w));
+}
+function filterChannels(){
+  const q=$('search').value.trim().toLowerCase();
+  let list=tab==='all'?channels:tab==='fav'?favs:tab==='history'?hist:channels.filter(c=>inCategory(c,tab));
+  if(hideDead&&tab!=='fav')list=list.filter(c=>!dead[c.url]||(cur&&cur.url===c.url));
+  if(q)list=list.filter(c=>c.name.toLowerCase().includes(q));
+  renderList(list);
+}
+function renderList(list){
+  rendered=list;
+  if(!list.length){$('list').innerHTML='<div class="empty">কোনো চ্যানেল পাওয়া যায়নি।</div>';return}
+  $('list').innerHTML=list.map((c,i)=>`
+    <div class="ch ${cur&&cur.url===c.url?'active':''} ${dead[c.url]?'dead':''}" onclick="playChannel(rendered[${i}])">
+      <span class="num">${i+1}</span>
+      ${c.logo?`<img src="${esc(c.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<span class=ph>📺</span>'">`:'<span class="ph">📺</span>'}
+      <span class="nm" title="${esc(c.name)}">${esc(c.name)}</span>
+      ${dead[c.url]?'<span class="off">বন্ধ</span>':''}
+      <button class="fav ${isFav(c)?'is':''}" onclick="event.stopPropagation();toggleFav(rendered[${i}])">${isFav(c)?'★':'☆'}</button>
+    </div>`).join('');
+}
+
+// ---------- playlist ----------
+function parseM3U(text){
+  const out=[],seen=new Set();let c=null;
+  for(const raw of text.split(/\r?\n/)){
+    const l=raw.trim();
+    if(l.startsWith('#EXTINF')){
+      const a=k=>(l.match(new RegExp(k+'="([^"]*)"'))||[])[1]||'';
+      c={name:l.slice(l.lastIndexOf(',')+1).trim()||'Unknown',logo:a('tvg-logo'),group:a('group-title'),url:''};
+    }else if(l&&l[0]!=='#'&&c){
+      c.url=l;
+      const key=c.name.toLowerCase().replace(/\s*[\(\[].*?[\)\]]/g,'').trim();
+      if(!seen.has(key)){seen.add(key);out.push(c)}
+      c=null;
+    }
+  }
+  return out;
+}
+function afterLoad(){
+  filterChannels();setStatus('playing',channels.length+' টি চ্যানেল');
+  if(!resumed){
+    resumed=true;
+    const last=get('iptv_last',null),ch=last&&channels.find(c=>c.url===last);
+    if(ch)playChannel(ch);
+  }
+}
+async function loadPlaylist(){
+  setStatus('loading','লোড হচ্ছে...');
+  const cached=get('iptv_cache',null);
+  if(cached&&!channels.length){channels=parseM3U(cached);afterLoad();setStatus('loading','আপডেট হচ্ছে...')}
+  try{
+    const r=await fetch(PLAYLIST_URL);if(!r.ok)throw new Error(r.status);
+    const t=await r.text();put('iptv_cache',t);
+    channels=parseM3U(t);afterLoad();
+  }catch(e){
+    if(channels.length){setStatus('playing',channels.length+' টি চ্যানেল');toast('অফলাইন: সেভ করা লিস্ট দেখাচ্ছে')}
+    else{$('list').innerHTML='<div class="empty">লোড ব্যর্থ হয়েছে।</div>';setStatus('error','লোড ব্যর্থ')}
+  }
+}
+
+// ---------- player ----------
+function fail(){
+  clearTimeout(loadTimer);
+  if(hls){hls.destroy();hls=null}
+  markDead(cur);ov('err','চ্যানেলটি বর্তমানে বন্ধ আছে বা কানেক্ট করা যাচ্ছে না।');
+  setStatus('error','স্ট্রিম ত্রুটি');
+}
+function onReady(){
+  video.play().then(()=>{},()=>{ov('play','ভিডিও চালু করতে প্লে বাটনে ক্লিক করুন');setStatus('playing','প্লে করুন')});
+}
+function playChannel(ch){
+  cur=ch;retries=0;put('iptv_last',ch.url);addHistory(ch);updateFavBtn();filterChannels();
+  $('np').textContent='📡 '+ch.name;
+  ov('load','চ্যানেল কানেক্ট হচ্ছে...');setStatus('loading','সংযোগ হচ্ছে...');
+  $('q').style.display='none';$('q').innerHTML='';
+  clearTimeout(loadTimer);
+  if(hls){hls.destroy();hls=null}
+  video.pause();video.removeAttribute('src');video.load();
+  loadTimer=setTimeout(fail,20000);
+
+  if(window.Hls&&Hls.isSupported()){
+    hls=new Hls({maxBufferLength:30,enableWorker:true});
+    hls.loadSource(ch.url);hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED,(e,d)=>{
+      if(d.levels&&d.levels.length>1){
+        $('q').innerHTML='<option value="-1">Auto</option>'+d.levels.map((l,i)=>`<option value="${i}">${l.height?l.height+'p':'Level '+(i+1)}</option>`).join('');
+        $('q').style.display='block';
+      }
+      onReady();
+    });
+    hls.on(Hls.Events.ERROR,(e,d)=>{
+      if(!d.fatal)return;
+      const T=Hls.ErrorTypes;
+      if(retries<2&&(d.type===T.NETWORK_ERROR||d.type===T.MEDIA_ERROR)){
+        retries++;
+        d.type===T.NETWORK_ERROR?hls.startLoad():hls.recoverMediaError();
+        return;
+      }
+      fail();
+    });
+  }else if(video.canPlayType('application/vnd.apple.mpegurl')){
+    video.src=ch.url;
+    video.addEventListener('loadedmetadata',onReady,{once:true});
+    video.addEventListener('error',fail,{once:true});
+  }else{fail()}
+}
+
+applyTheme();syncHideBtn();loadPlaylist();
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+</script>
+</body>
+</html>
