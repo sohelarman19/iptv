@@ -1,4 +1,4 @@
-const CACHE='bangla-iptv-v1';
+const CACHE='bangla-iptv-v2';
 const SHELL=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png'];
 const HLS='https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js';
 
