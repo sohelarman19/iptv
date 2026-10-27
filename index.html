@@ -35,7 +35,8 @@ header h1 span{background:var(--danger);color:#fff;font-size:10px;padding:2px 6p
 .tabs button{padding:12px 14px;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap}
 .tabs button.active{color:var(--primary);border-bottom-color:var(--primary)}
 .list{flex:1;overflow-y:auto}
-.ch{padding:8px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px}
+body.saver *{animation:none!important}
+.ch{height:53px;overflow:hidden;padding:8px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px}
 .ch:hover{background:var(--hover)}.ch.active{background:rgba(99,102,241,.15);border-left:3px solid var(--primary)}
 .ch.dead{opacity:.5}.ch.dead .nm{text-decoration:line-through}
 .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px;flex:none}
@@ -83,9 +84,10 @@ video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
 <header>
   <h1>📺 বাংলা IPTV <span>LIVE</span></h1>
   <div class="search-box">
-    <input id="search" type="text" placeholder="চ্যানেল খুঁজুন... ( / )" oninput="filterChannels()">
+    <input id="search" type="text" placeholder="চ্যানেল খুঁজুন... ( / )" oninput="debSearch()">
   </div>
   <div class="hc">
+    <button class="icon-btn" id="batBtn" onclick="toggleSaver()" title="Battery Saver">🔋</button>
     <button class="icon-btn" onclick="loadPlaylist()" title="রিফ্রেশ">🔄</button>
     <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="থিম">🌙</button>
   </div>
@@ -147,7 +149,7 @@ const KW={sports:['sport','cricket','football'],news:['news','khobor','somoy','j
 
 let channels=[],cur=null,tab='all',hls=null,rendered=[],retries=0,loadTimer=null,resumed=false;
 let favs=get('iptv_favs',[]),hist=get('iptv_history',[]),dead=get('iptv_dead',{});
-let hideDead=get('iptv_hide',false),scanning=false;
+let hideDead=get('iptv_hide',false),scanning=false,saver=get('iptv_saver',false),autoPaused=false,dt;
 const video=$('video');
 video.muted=get('iptv_muted',false);
 
@@ -168,10 +170,23 @@ function applyTheme(){const t=get('iptv_theme','dark');document.documentElement.
 function toggleTheme(){put('iptv_theme',get('iptv_theme','dark')==='dark'?'light':'dark');applyTheme()}
 function toggleHide(){hideDead=$('hideChk').checked;put('iptv_hide',hideDead);filterChannels()}
 function syncHideBtn(){$('hideChk').checked=hideDead}
+function safeUrl(u){try{const p=new URL(u);return(p.protocol==='http:'||p.protocol==='https:')?u:''}catch(e){return ''}}
+function playable(u){return location.protocol==='https:'&&u.startsWith('http:')?'https:'+u.slice(5):u}
+function debSearch(){clearTimeout(dt);dt=setTimeout(()=>{$('list').scrollTop=0;filterChannels()},200)}
+function applySaver(){document.body.classList.toggle('saver',saver);$('batBtn').classList.toggle('on',saver)}
+function toggleSaver(){saver=!saver;put('iptv_saver',saver);applySaver();toast(saver?'🔋 ব্যাটারি সেভার চালু (৪৮০p পর্যন্ত)':'ব্যাটারি সেভার বন্ধ');if(cur)playChannel(cur)}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    if(!video.paused&&!document.pictureInPictureElement){autoPaused=true;video.pause();if(hls)hls.stopLoad()}
+  }else if(autoPaused){
+    autoPaused=false;if(hls)hls.startLoad(-1);
+    video.play().catch(()=>ov('play','চালু করতে প্লে বাটনে ক্লিক করুন'));
+  }
+});
 async function checkUrl(u){
   const c=new AbortController(),t=setTimeout(()=>c.abort(),8000);
   try{
-    const r=await fetch(u,{signal:c.signal});if(!r.ok)return false;
+    const r=await fetch(playable(u),{signal:c.signal});if(!r.ok)return false;
     const rd=r.body.getReader(),{value}=await rd.read();rd.cancel();
     return !!value&&new TextDecoder().decode(value.slice(0,32)).includes('#EXTM3U');
   }catch(e){return false}finally{clearTimeout(t)}
@@ -219,7 +234,9 @@ function step(dir){
   let i=cur?rendered.findIndex(c=>c.url===cur.url):-1;
   i=i<0?(dir>0?0:rendered.length-1):(i+dir+rendered.length)%rendered.length;
   playChannel(rendered[i]);
-  const a=$('list').querySelector('.active');if(a)a.scrollIntoView({block:'nearest'});
+  const L=$('list'),idx=rendered.findIndex(c=>c.url===cur.url),y=idx*H;
+  if(y<L.scrollTop)L.scrollTop=y;else if(y+H>L.scrollTop+L.clientHeight)L.scrollTop=y+H-L.clientHeight;
+  paint(true);
 }
 document.addEventListener('keydown',e=>{
   const inInput=document.activeElement===$('search');
@@ -253,7 +270,7 @@ document.getElementById('tabs').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   tab=b.dataset.t;
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('active',x===b));
-  filterChannels();
+  $('list').scrollTop=0;filterChannels();
 });
 function inCategory(ch,t){
   if(GROUPS[t].test(ch.group))return true;
@@ -267,18 +284,30 @@ function filterChannels(){
   if(q)list=list.filter(c=>c.name.toLowerCase().includes(q));
   renderList(list);
 }
+const H=53;let pS=-1,pE=-1,tick=0;
 function renderList(list){
-  rendered=list;
+  rendered=list;pS=pE=-1;
   if(!list.length){$('list').innerHTML='<div class="empty">কোনো চ্যানেল পাওয়া যায়নি।</div>';return}
-  $('list').innerHTML=list.map((c,i)=>`
-    <div class="ch ${cur&&cur.url===c.url?'active':''} ${dead[c.url]?'dead':''}" onclick="playChannel(rendered[${i}])">
+  paint(true);
+}
+function paint(force){
+  const L=$('list'),n=rendered.length;if(!n)return;
+  const st=Math.max(0,Math.floor(L.scrollTop/H)-6),en=Math.min(n,st+Math.ceil((L.clientHeight||600)/H)+12);
+  if(!force&&st===pS&&en===pE)return;pS=st;pE=en;
+  let h=`<div style="height:${st*H}px"></div>`;
+  for(let i=st;i<en;i++){
+    const c=rendered[i],f=isFav(c);
+    h+=`<div class="ch ${cur&&cur.url===c.url?'active':''} ${dead[c.url]?'dead':''}" onclick="playChannel(rendered[${i}])">
       <span class="num">${i+1}</span>
       ${c.logo?`<img src="${esc(c.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<span class=ph>📺</span>'">`:'<span class="ph">📺</span>'}
       <span class="nm" title="${esc(c.name)}">${esc(c.name)}</span>
       ${dead[c.url]?'<span class="off">বন্ধ</span>':''}
-      <button class="fav ${isFav(c)?'is':''}" onclick="event.stopPropagation();toggleFav(rendered[${i}])">${isFav(c)?'★':'☆'}</button>
-    </div>`).join('');
+      <button class="fav ${f?'is':''}" onclick="event.stopPropagation();toggleFav(rendered[${i}])">${f?'★':'☆'}</button>
+    </div>`;
+  }
+  L.innerHTML=h+`<div style="height:${(n-en)*H}px"></div>`;
 }
+$('list').addEventListener('scroll',()=>{if(!tick){tick=1;requestAnimationFrame(()=>{tick=0;paint()})}});
 
 // ---------- playlist ----------
 function parseM3U(text){
@@ -289,7 +318,8 @@ function parseM3U(text){
       const a=k=>(l.match(new RegExp(k+'="([^"]*)"'))||[])[1]||'';
       c={name:l.slice(l.lastIndexOf(',')+1).trim()||'Unknown',logo:a('tvg-logo'),group:a('group-title'),url:''};
     }else if(l&&l[0]!=='#'&&c){
-      c.url=l;
+      c.url=safeUrl(l);if(!c.url){c=null;continue}
+      c.logo=safeUrl(c.logo);
       const key=c.name.toLowerCase().replace(/\s*[\(\[].*?[\)\]]/g,'').trim();
       if(!seen.has(key)){seen.add(key);out.push(c)}
       c=null;
@@ -338,14 +368,19 @@ function playChannel(ch){
   if(hls){hls.destroy();hls=null}
   video.pause();video.removeAttribute('src');video.load();
   loadTimer=setTimeout(fail,20000);
+  const src=playable(ch.url);
 
   if(window.Hls&&Hls.isSupported()){
-    hls=new Hls({maxBufferLength:30,enableWorker:true});
-    hls.loadSource(ch.url);hls.attachMedia(video);
+    hls=new Hls({enableWorker:true,lowLatencyMode:false,capLevelToPlayerSize:true,maxBufferLength:saver?10:20,maxMaxBufferLength:saver?20:40,backBufferLength:10,maxBufferSize:30e6,startLevel:saver?0:-1,startFragPrefetch:false});
+    hls.loadSource(src);hls.attachMedia(video);
     hls.on(Hls.Events.MANIFEST_PARSED,(e,d)=>{
       if(d.levels&&d.levels.length>1){
         $('q').innerHTML='<option value="-1">Auto</option>'+d.levels.map((l,i)=>`<option value="${i}">${l.height?l.height+'p':'Level '+(i+1)}</option>`).join('');
         $('q').style.display='block';
+      }
+      if(saver&&d.levels){
+        let cap=-1;d.levels.forEach((l,i)=>{if(l.height&&l.height<=480)cap=Math.max(cap,i)});
+        hls.autoLevelCapping=cap<0?0:cap;
       }
       onReady();
     });
@@ -360,13 +395,13 @@ function playChannel(ch){
       fail();
     });
   }else if(video.canPlayType('application/vnd.apple.mpegurl')){
-    video.src=ch.url;
+    video.src=src;
     video.addEventListener('loadedmetadata',onReady,{once:true});
     video.addEventListener('error',fail,{once:true});
   }else{fail()}
 }
 
-applyTheme();syncHideBtn();loadPlaylist();
+applyTheme();applySaver();syncHideBtn();loadPlaylist();
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 </script>
 </body>
